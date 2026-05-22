@@ -39,6 +39,7 @@
     #confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;display:none}
     .hype{font-size:24px;font-weight:900;line-height:1.5;text-align:center;background:linear-gradient(135deg,#ffd700,#ff6b6b,#4aa3ff,#2ecc71);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:12px 0;animation:hypepulse 1.8s ease-in-out infinite alternate}
     @keyframes hypepulse{from{filter:brightness(1)}to{filter:brightness(1.3)}}
+    button.hardcore{border-color:rgba(255,92,92,.65);background:rgba(255,92,92,.13);color:#ff9090;}
   </style>
 </head>
 <body>
@@ -91,10 +92,12 @@
       timerHandle: null,
       phase: 'pickUser',
       checked: false,
+      totalQ: 25,
+      hardcore: false,
     };
 
     function setTop(){
-      $('pillProg').innerHTML = `Approved: <strong>${state.approved}/${TOTAL_QUESTIONS}</strong> • Correct: <strong>${state.correct}</strong>`;
+      $('pillProg').innerHTML = `Approved: <strong>${state.approved}/${state.totalQ}</strong> • Correct: <strong>${state.correct}</strong>`;
       $('pillTime').innerHTML = `Time: <strong>${formatTime(state.timer)}</strong>`;
     }
 
@@ -180,26 +183,39 @@
 
       $('view').innerHTML = `
         <div class="center">
+          <div class="big">Select who is taking the quiz</div>
           <div class="small">You will start immediately. 25 random questions. 40 minutes.</div>
         </div>
         <div style="height:14px"></div>
         <div class="btnrow">
           <button class="primary" id="btnStart">BOSHLASH</button>
         </div>
+        <div style="height:10px"></div>
+        <div class="btnrow">
+          <button class="hardcore" id="btnHardcore">☠ HARDCORE</button>
+        </div>
         <div class="hint">Tip: If you open this on a phone, add it to Home Screen for full-screen feel.</div>
       `;
 
-      $('btnStart').onclick = () => begin();
+      $('btnStart').onclick = () => begin(false);
+      $('btnHardcore').onclick = () => begin(true);
     }
 
-    function begin(){
+    function begin(hardcore=false){
       const all = Array.isArray(window.QUESTIONS) ? window.QUESTIONS : [];
       if(all.length < TOTAL_QUESTIONS){
         alert('Not enough questions loaded.');
         return;
       }
-      const idx = shuffle([...Array(all.length).keys()]).slice(0, TOTAL_QUESTIONS);
-      state.pool = idx.map(i => all[i]);
+      state.hardcore = hardcore;
+      if(hardcore){
+        state.totalQ = all.length;
+        state.pool = shuffle([...all]);
+      } else {
+        state.totalQ = TOTAL_QUESTIONS;
+        const idx = shuffle([...Array(all.length).keys()]).slice(0, TOTAL_QUESTIONS);
+        state.pool = idx.map(i => all[i]);
+      }
       state.queue = [...state.pool];
       state.approved = 0;
       state.correct = 0;
@@ -244,7 +260,7 @@
 
       $('view').innerHTML = `
         <div class="statusline">
-          Question in queue: <strong>${TOTAL_QUESTIONS - state.queue.length + 1}</strong> / <strong>${TOTAL_QUESTIONS}</strong>
+          Question in queue: <strong>${state.totalQ - state.queue.length + 1}</strong> / <strong>${state.totalQ}</strong>
           <span style="opacity:.6">•</span>
           Approved: <strong>${state.approved}</strong>
           <span style="opacity:.6">•</span>
@@ -319,14 +335,14 @@
       approveBtn.textContent = 'Next';
       approveBtn.disabled = false;
 
-      if(state.approved >= TOTAL_QUESTIONS){
+      if(state.approved >= state.totalQ){
         finishQuiz(false);
       }
     }
 
     function nextQuestion(){
       if(state.phase !== 'inQuiz') return;
-      if(state.approved >= TOTAL_QUESTIONS){
+      if(state.approved >= state.totalQ){
         finishQuiz(false);
         return;
       }
@@ -344,7 +360,7 @@
       $('topTitle').textContent = 'Result';
 
       const used = TIME_LIMIT_SEC - state.timer;
-      const perfect = !timeout && state.correct === TOTAL_QUESTIONS;
+      const perfect = !timeout && state.correct === state.totalQ;
 
       if(perfect){
         startConfetti();
@@ -356,7 +372,7 @@
         <div style="height:14px"></div>
         <div class="card" style="border-radius:16px">
           <div class="content">
-            <div class="statusline">Approved: <strong>${state.approved}/${TOTAL_QUESTIONS}</strong></div>
+            <div class="statusline">Approved: <strong>${state.approved}/${state.totalQ}</strong></div>
             <div class="statusline">Correct (out of approved): <strong>${state.correct}</strong></div>
             <div class="statusline">Time used: <strong>${formatTime(used)}</strong> (limit 40:00)</div>
             <div class="statusline">Time left: <strong>${formatTime(state.timer)}</strong></div>
@@ -366,7 +382,7 @@
         <div class="btnrow">
           <button class="primary" id="btnRestart">Restart</button>
         </div>
-        <div class="hint">Restart will generate a new random set of 25 questions and reshuffle options.</div>
+        <div class="hint">Restart will generate a new random set of ${state.hardcore ? 'all' : '25'} questions and reshuffle options.</div>
       ` : `
         <div class="center">
           <div class="big">${timeout ? 'Time is up.' : 'Finished.'}</div>
@@ -374,7 +390,7 @@
         <div style="height:14px"></div>
         <div class="card" style="border-radius:16px">
           <div class="content">
-            <div class="statusline">Approved: <strong>${state.approved}/${TOTAL_QUESTIONS}</strong></div>
+            <div class="statusline">Approved: <strong>${state.approved}/${state.totalQ}</strong></div>
             <div class="statusline">Correct (out of approved): <strong>${state.correct}</strong></div>
             <div class="statusline">Time used: <strong>${formatTime(used)}</strong> (limit 40:00)</div>
             <div class="statusline">Time left: <strong>${formatTime(state.timer)}</strong></div>
@@ -384,13 +400,13 @@
         <div class="btnrow">
           <button class="primary" id="btnRestart">Restart</button>
         </div>
-        <div class="hint">Restart will generate a new random set of 25 questions and reshuffle options.</div>
+        <div class="hint">Restart will generate a new random set of ${state.hardcore ? 'all' : '25'} questions and reshuffle options.</div>
       `;
 
       $('btnRestart').onclick = () => {
         stopConfetti();
         if(cheerAudio){ cheerAudio.pause(); cheerAudio=null; }
-        begin();
+        begin(state.hardcore);
       };
     }
 
